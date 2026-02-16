@@ -71,7 +71,7 @@ function readPayload(params: Record<string, unknown>): unknown {
 }
 
 const plugin = {
-  id: "a2a-client",
+  id: "openclaw-a2a-client",
   async register(api: PluginApi): Promise<void> {
     if (typeof api.registerGatewayMethod !== "function") {
       throw new Error("Plugin API missing registerGatewayMethod");

@@ -52,7 +52,7 @@ Integration script for public endpoint confidence checks:
 
 Declares plugin identity and configuration schema required by OpenClaw plugin loading:
 
-1. `id: a2a-client`
+1. `id: openclaw-a2a-client`
 2. Config schema for endpoint and auth controls
 3. Skills linkage for shared skill usage
 

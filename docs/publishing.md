@@ -53,7 +53,7 @@ npm run build
 ```json
 {
   "plugins": {
-    "a2a-client": {
+    "openclaw-a2a-client": {
       "enabled": true,
       "config": {
         "baseUrl": "https://hello.a2aregistry.org",

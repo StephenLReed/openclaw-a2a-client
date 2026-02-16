@@ -18,7 +18,7 @@ The plugin layer enables runtime registration of Gateway-callable methods while 
 
 The runtime exports a default plugin object with:
 
-1. `id: "a2a-client"`
+1. `id: "openclaw-a2a-client"`
 2. `register(api)` method
 
 `register(api)` binds four gateway methods:

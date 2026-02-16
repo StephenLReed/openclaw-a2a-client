@@ -94,6 +94,7 @@ bash scripts/a2a_smoke.sh
 Manifest:
 
 1. `openclaw.plugin.json`
+2. Plugin id: `openclaw-a2a-client`
 
 Runtime entry:
 

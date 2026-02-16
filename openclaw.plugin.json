@@ -1,8 +1,8 @@
 {
-  "id": "a2a-client",
+  "id": "openclaw-a2a-client",
   "name": "A2A Client",
   "description": "Auth-aware A2A transport plugin with card discovery, send, probe, and smoke methods.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "kind": "plugin",
   "skills": [
     "."
