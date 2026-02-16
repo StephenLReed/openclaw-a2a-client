@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "id": "msg-1",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "messageId": "m1",
+      "role": "user",
+      "parts": [
+        {
+          "text": "echo test"
+        }
+      ]
+    }
+  }
+}
