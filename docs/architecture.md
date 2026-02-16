@@ -71,7 +71,7 @@ Provides reusable TypeScript transport core:
 
 1. Config resolution and auth validation.
 2. Header construction for all auth modes.
-3. HTTP request execution with timeout and normalized envelopes.
+3. HTTP request execution with timeout, bounded retry/backoff, and normalized envelopes.
 4. Smoke workflow composed from card + send operations.
 
 ### `examples/`
@@ -98,6 +98,21 @@ Covers plugin runtime behavior:
 2. Invalid payload behavior.
 3. Method registration contract.
 4. Config-error behavior and handler response path.
+
+### `tests/auth-integration.test.mjs`
+
+Runs protected endpoint integration checks against a local mock A2A server:
+
+1. `none`, `bearer`, `basic`, and custom-header auth success paths.
+2. Unauthorized failure behavior (`401`).
+3. Retry behavior for transient upstream failures.
+
+### `.github/workflows/ci.yml`
+
+CI hardening for release confidence:
+
+1. Linux and macOS matrix for deterministic offline test suite.
+2. Optional live smoke checks on manual/scheduled workflow runs.
 
 ## Endpoint Strategy
 
@@ -132,19 +147,21 @@ Success envelope:
 
 1. `ok: true`
 2. `operation`
-3. `status`
-4. `url`
-5. `data` (JSON object or raw text fallback)
+3. `attempts`
+4. `status`
+5. `url`
+6. `data` (JSON object or raw text fallback)
 
 Error envelope:
 
 1. `ok: false`
 2. `operation`
-3. `status` (nullable when request fails before HTTP response)
-4. `url`
-5. `error.code`
-6. `error.message`
-7. `body` (JSON object or raw text fallback)
+3. `attempts`
+4. `status` (nullable when request fails before HTTP response)
+5. `url`
+6. `error.code`
+7. `error.message`
+8. `body` (JSON object or raw text fallback)
 
 This structure enables Consullo-side policy and audit tooling to reason consistently across endpoint types.
 

@@ -31,6 +31,9 @@ describe("config and header behavior", () => {
     assert.equal(cfg.baseUrl, "https://hello.a2aregistry.org");
     assert.equal(cfg.cardUrl, "https://hello.a2aregistry.org/.well-known/agent-card.json");
     assert.equal(cfg.endpointUrl, "https://hello.a2aregistry.org/a2a");
+    assert.equal(cfg.maxRetries, 2);
+    assert.equal(cfg.retryBaseDelayMs, 250);
+    assert.equal(cfg.retryMaxDelayMs, 2000);
     assert.equal(cfg.authMode, "none");
   });
 
@@ -49,7 +52,30 @@ describe("config and header behavior", () => {
     const cfg = resolveConfig({});
     const result = await send(cfg, undefined);
     assert.equal(result.ok, false);
+    assert.equal(result.attempts, 1);
     assert.equal(result.error.code, "invalid_payload");
+  });
+
+  test("send retries transient failures before succeeding", async () => {
+    let callCount = 0;
+    globalThis.fetch = async () => {
+      callCount += 1;
+      if (callCount < 3) {
+        return jsonResponse(503, { error: "temporarily unavailable" });
+      }
+      return jsonResponse(200, { ok: true });
+    };
+
+    const cfg = resolveConfig({
+      baseUrl: "https://hello.a2aregistry.org",
+      maxRetries: 3,
+      retryBaseDelayMs: 1,
+      retryMaxDelayMs: 2,
+    });
+    const result = await send(cfg, { ping: true });
+    assert.equal(result.ok, true);
+    assert.equal(result.attempts, 3);
+    assert.equal(callCount, 3);
   });
 });
 
@@ -102,6 +128,7 @@ describe("plugin runtime registration and handlers", () => {
     assert.equal(sent[0].ok, true);
     assert.equal(sent[0].payload.ok, true);
     assert.equal(sent[0].payload.operation, "send");
+    assert.equal(sent[0].payload.attempts, 1);
     assert.equal(sent[0].payload.data.receivedInput.ping, true);
     assert.equal(callResult.ok, true);
   });

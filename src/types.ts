@@ -5,6 +5,9 @@ export interface A2APluginConfig {
   cardUrl?: string;
   endpointUrl?: string;
   timeoutMs?: number;
+  maxRetries?: number;
+  retryBaseDelayMs?: number;
+  retryMaxDelayMs?: number;
   authMode?: AuthMode;
   authToken?: string;
   authUser?: string;
@@ -19,6 +22,9 @@ export interface ResolvedA2AConfig {
   cardUrl: string;
   endpointUrl: string;
   timeoutMs: number;
+  maxRetries: number;
+  retryBaseDelayMs: number;
+  retryMaxDelayMs: number;
   authMode: AuthMode;
   authToken?: string;
   authUser?: string;
@@ -31,6 +37,7 @@ export interface ResolvedA2AConfig {
 export interface ErrorEnvelope {
   ok: false;
   operation: string;
+  attempts: number;
   status: number | null;
   url: string;
   error: {
@@ -43,6 +50,7 @@ export interface ErrorEnvelope {
 export interface SuccessEnvelope {
   ok: true;
   operation: string;
+  attempts: number;
   status: number;
   url: string;
   data: unknown;

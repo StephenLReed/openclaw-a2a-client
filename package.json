@@ -1,6 +1,6 @@
 {
   "name": "@stephenlreed/openclaw-a2a-client",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "description": "OpenClaw A2A client plugin and skill package",
   "license": "MIT",
@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "test:plugin": "npm run build && node --test tests/plugin-runtime.test.mjs",
+    "test:plugin": "npm run build && node --test tests/plugin-runtime.test.mjs tests/auth-integration.test.mjs",
+    "test:offline": "RUN_LIVE=0 bash tests/test.sh && npm run test:plugin",
+    "test:live": "RUN_LIVE=1 bash tests/test.sh",
     "test": "bash tests/test.sh && npm run test:plugin"
   },
   "openclaw": {

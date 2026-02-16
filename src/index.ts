@@ -28,6 +28,7 @@ function configErrorEnvelope(operation: string, targetUrl: string, message: stri
   return {
     ok: false,
     operation,
+    attempts: 1,
     status: null,
     url: targetUrl,
     error: {

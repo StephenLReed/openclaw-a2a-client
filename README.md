@@ -12,8 +12,10 @@ The design keeps Consullo as the system-of-record for governance, trust, and pol
 1. Publishable OpenClaw skill package (`SKILL.md`).
 2. Auth-aware transport scripts (`card`, `send`, `probe`, `smoke`).
 3. TypeScript plugin with `openclaw.plugin.json` and runtime module.
-4. Unit and integration tests.
-5. Comprehensive markdown documentation.
+4. Retry/backoff-hardened plugin transport with bounded policy controls.
+5. Unit and integration tests, including protected auth-mode integration tests.
+6. GitHub Actions CI for Linux and macOS.
+7. Comprehensive markdown documentation.
 
 ## Repository Layout
 
@@ -21,9 +23,13 @@ The design keeps Consullo as the system-of-record for governance, trust, and pol
 openclaw-a2a-client/
   SKILL.md
   openclaw.plugin.json
+  LICENSE
   package.json
   tsconfig.json
   README.md
+  .github/
+    workflows/
+      ci.yml
   docs/
     architecture.md
     plugin-layer.md
@@ -41,6 +47,7 @@ openclaw-a2a-client/
   tests/
     test.sh
     plugin-runtime.test.mjs
+    auth-integration.test.mjs
 ```
 
 ## Quick Start
@@ -68,6 +75,12 @@ npm run build
 
 ```bash
 npm test
+```
+
+### 5. Run deterministic CI-equivalent suite (offline)
+
+```bash
+npm run test:offline
 ```
 
 ## Skill Layer Commands
@@ -136,14 +149,16 @@ Optional per-call config overrides:
 Plugin config schema fields:
 
 1. Endpoint: `baseUrl`, `cardUrl`, `endpointUrl`, `timeoutMs`
-2. Auth: `authMode`, `authToken`, `authUser`, `authPass`, `authHeaderName`, `authHeaderValue`
-3. Headers: `defaultHeaders`
+2. Reliability: `maxRetries`, `retryBaseDelayMs`, `retryMaxDelayMs`
+3. Auth: `authMode`, `authToken`, `authUser`, `authPass`, `authHeaderName`, `authHeaderValue`
+4. Headers: `defaultHeaders`
 
 Script env variables:
 
 1. Endpoint: `A2A_BASE_URL`, `A2A_CARD_URL`, `A2A_ENDPOINT_URL`, `A2A_TIMEOUT_SEC`
-2. Auth mode: `A2A_AUTH_MODE` (`none|bearer|basic|header`)
-3. Auth secrets: `A2A_AUTH_TOKEN`, `A2A_AUTH_USER`, `A2A_AUTH_PASS`, `A2A_AUTH_HEADER_NAME`, `A2A_AUTH_HEADER_VALUE`
+2. Retry policy: `A2A_MAX_RETRIES`, `A2A_RETRY_BASE_DELAY_MS`, `A2A_RETRY_MAX_DELAY_MS`
+3. Auth mode: `A2A_AUTH_MODE` (`none|bearer|basic|header`)
+4. Auth secrets: `A2A_AUTH_TOKEN`, `A2A_AUTH_USER`, `A2A_AUTH_PASS`, `A2A_AUTH_HEADER_NAME`, `A2A_AUTH_HEADER_VALUE`
 
 ## Consullo Positioning
 

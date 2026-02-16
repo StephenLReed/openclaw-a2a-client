@@ -11,8 +11,9 @@ This repository ships both:
 
 1. `SKILL.md` at repository root.
 2. `openclaw.plugin.json` at repository root for plugin-enabled distributions.
-3. Only text-based files in package.
-4. Size comfortably below 50MB.
+3. `LICENSE` at repository root.
+4. Only text-based files in package.
+5. Size comfortably below 50MB.
 
 ## Versioning and Slug Guidance
 
@@ -24,7 +25,7 @@ This repository ships both:
 1. Run local tests:
 
 ```bash
-npm test
+npm run test:offline
 ```
 
 2. Validate skill metadata and required binaries:
@@ -46,6 +47,15 @@ git grep -n "A2A_AUTH_TOKEN\\|A2A_AUTH_PASS\\|clh_"
 npm run build
 ```
 
+7. Run clean-room OpenClaw plugin/skill verification:
+
+```bash
+openclaw --profile a2a-cleanroom plugins install --link "$(pwd)"
+openclaw --profile a2a-cleanroom gateway start
+openclaw --profile a2a-cleanroom gateway call a2a-client.smoke --json
+openclaw --profile a2a-cleanroom gateway stop
+```
+
 ## Example Runtime Configurations
 
 ### Plugin configuration block
@@ -53,12 +63,17 @@ npm run build
 ```json
 {
   "plugins": {
-    "openclaw-a2a-client": {
-      "enabled": true,
-      "config": {
-        "baseUrl": "https://hello.a2aregistry.org",
-        "authMode": "none",
-        "timeoutMs": 20000
+    "entries": {
+      "openclaw-a2a-client": {
+        "enabled": true,
+        "config": {
+          "baseUrl": "https://hello.a2aregistry.org",
+          "authMode": "none",
+          "timeoutMs": 20000,
+          "maxRetries": 2,
+          "retryBaseDelayMs": 250,
+          "retryMaxDelayMs": 2000
+        }
       }
     }
   }
@@ -113,3 +128,36 @@ npm run build
 
 1. Public hello endpoint is a transport compatibility baseline, not complete protocol conformance.
 2. Production workflows should include policy-aware wrappers and audit capture in Consullo.
+
+## ClawHub Beta Publish Commands
+
+Use this sequence for a beta release from repository root.
+
+```bash
+# 1) Authenticate and verify identity
+clawhub auth login
+clawhub whoami
+
+# 2) Validate package before publish
+clawhub inspect .
+npm run test:offline
+
+# 3) Create and push a beta git tag
+git tag -a v0.3.0-beta.1 -m "OpenClaw A2A client beta 1"
+git push origin v0.3.0-beta.1
+
+# 4) Publish beta package to ClawHub
+clawhub publish .
+
+# 5) Sync metadata updates if description/docs changed
+clawhub sync .
+```
+
+Rollback command set:
+
+```bash
+# Deprecate or supersede the beta by publishing a fixed beta
+git tag -a v0.3.0-beta.2 -m "OpenClaw A2A client beta 2"
+git push origin v0.3.0-beta.2
+clawhub publish .
+```

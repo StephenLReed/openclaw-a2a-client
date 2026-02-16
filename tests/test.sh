@@ -6,6 +6,16 @@ RUN_LIVE="${RUN_LIVE:-1}"
 
 cd "${ROOT_DIR}"
 
+contains() {
+  local pattern="$1"
+  local file="$2"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "$pattern" "$file"
+  else
+    grep -Eq "$pattern" "$file"
+  fi
+}
+
 echo "[1/4] Syntax checks"
 bash -n scripts/a2a_request.sh
 bash -n scripts/a2a_smoke.sh
@@ -16,7 +26,7 @@ if A2A_AUTH_MODE="bearer" bash scripts/a2a_request.sh probe >/tmp/a2a-test-out.l
   echo "Expected bearer mode without token to fail"
   exit 1
 fi
-if ! rg -q "A2A_AUTH_TOKEN required" /tmp/a2a-test-err.log; then
+if ! contains "A2A_AUTH_TOKEN required" /tmp/a2a-test-err.log; then
   echo "Expected A2A_AUTH_TOKEN required error message"
   exit 1
 fi
@@ -25,7 +35,7 @@ if A2A_AUTH_MODE="header" bash scripts/a2a_request.sh probe >/tmp/a2a-test-out.l
   echo "Expected header mode without header fields to fail"
   exit 1
 fi
-if ! rg -q "A2A_AUTH_HEADER_NAME required" /tmp/a2a-test-err.log; then
+if ! contains "A2A_AUTH_HEADER_NAME required" /tmp/a2a-test-err.log; then
   echo "Expected A2A_AUTH_HEADER_NAME required error message"
   exit 1
 fi

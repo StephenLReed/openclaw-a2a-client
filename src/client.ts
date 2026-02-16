@@ -9,6 +9,11 @@ import type {
 
 const DEFAULT_BASE_URL = "https://hello.a2aregistry.org";
 const DEFAULT_TIMEOUT_MS = 20_000;
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_RETRY_BASE_DELAY_MS = 250;
+const DEFAULT_RETRY_MAX_DELAY_MS = 2_000;
+
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 export class ConfigError extends Error {
   readonly code = "config_error";
@@ -17,6 +22,16 @@ export class ConfigError extends Error {
     super(message);
     this.name = "ConfigError";
   }
+}
+
+function parseBoundedInt(raw: unknown, min: number, max: number, fallback: number): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(min, Math.min(max, Math.floor(raw)));
+  }
+  if (typeof raw === "string" && /^\d+$/.test(raw)) {
+    return Math.max(min, Math.min(max, Number(raw)));
+  }
+  return fallback;
 }
 
 function parseTimeoutMs(config: A2APluginConfig, env: NodeJS.ProcessEnv): number {
@@ -54,6 +69,36 @@ function normalizeUrl(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
+function parseRetryConfig(
+  config: A2APluginConfig,
+  env: NodeJS.ProcessEnv
+): Pick<ResolvedA2AConfig, "maxRetries" | "retryBaseDelayMs" | "retryMaxDelayMs"> {
+  const maxRetries = parseBoundedInt(
+    config.maxRetries ?? env.A2A_MAX_RETRIES,
+    0,
+    5,
+    DEFAULT_MAX_RETRIES
+  );
+  const retryBaseDelayMs = parseBoundedInt(
+    config.retryBaseDelayMs ?? env.A2A_RETRY_BASE_DELAY_MS,
+    50,
+    5000,
+    DEFAULT_RETRY_BASE_DELAY_MS
+  );
+  const retryMaxDelayMsRaw = parseBoundedInt(
+    config.retryMaxDelayMs ?? env.A2A_RETRY_MAX_DELAY_MS,
+    retryBaseDelayMs,
+    10_000,
+    DEFAULT_RETRY_MAX_DELAY_MS
+  );
+
+  return {
+    maxRetries,
+    retryBaseDelayMs,
+    retryMaxDelayMs: Math.max(retryBaseDelayMs, retryMaxDelayMsRaw),
+  };
+}
+
 export function resolveConfig(
   inputConfig: unknown,
   env: NodeJS.ProcessEnv = process.env
@@ -63,12 +108,16 @@ export function resolveConfig(
   const cardUrl = config.cardUrl ?? env.A2A_CARD_URL ?? `${baseUrl}/.well-known/agent-card.json`;
   const endpointUrl = config.endpointUrl ?? env.A2A_ENDPOINT_URL ?? `${baseUrl}/a2a`;
   const authMode = parseAuthMode(config.authMode ?? env.A2A_AUTH_MODE);
+  const retryConfig = parseRetryConfig(config, env);
 
   const resolved: ResolvedA2AConfig = {
     baseUrl,
     cardUrl,
     endpointUrl,
     timeoutMs: parseTimeoutMs(config, env),
+    maxRetries: retryConfig.maxRetries,
+    retryBaseDelayMs: retryConfig.retryBaseDelayMs,
+    retryMaxDelayMs: retryConfig.retryMaxDelayMs,
     authMode,
     authToken: config.authToken ?? env.A2A_AUTH_TOKEN,
     authUser: config.authUser ?? env.A2A_AUTH_USER,
@@ -147,11 +196,13 @@ function successEnvelope(
   operation: string,
   status: number,
   url: string,
-  bodyText: string
+  bodyText: string,
+  attempts = 1
 ): SuccessEnvelope {
   return {
     ok: true,
     operation,
+    attempts,
     status,
     url,
     data: parseJsonOrText(bodyText),
@@ -164,11 +215,13 @@ function errorEnvelope(
   url: string,
   code: string,
   message: string,
-  bodyText: string
+  bodyText: string,
+  attempts = 1
 ): ErrorEnvelope {
   return {
     ok: false,
     operation,
+    attempts,
     status,
     url,
     error: {
@@ -179,6 +232,30 @@ function errorEnvelope(
   };
 }
 
+function isRetryableStatus(status: number): boolean {
+  return RETRYABLE_STATUS_CODES.has(status);
+}
+
+function shouldRetryNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return true;
+  }
+  if (error.name === "AbortError") {
+    return true;
+  }
+  return true;
+}
+
+function computeBackoffDelayMs(config: ResolvedA2AConfig, attempt: number): number {
+  const exponential = config.retryBaseDelayMs * 2 ** attempt;
+  return Math.min(config.retryMaxDelayMs, exponential);
+}
+
+async function waitForBackoff(config: ResolvedA2AConfig, attempt: number): Promise<void> {
+  const delayMs = computeBackoffDelayMs(config, attempt);
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 export async function httpRequest(
   operation: string,
   method: "GET" | "POST",
@@ -186,46 +263,75 @@ export async function httpRequest(
   config: ResolvedA2AConfig,
   payload?: unknown
 ): Promise<A2AEnvelope> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const includeContentType = method === "POST";
+  const headers = buildHeaders(config, includeContentType);
+  const body = payload === undefined ? undefined : JSON.stringify(payload);
+  const totalAttempts = config.maxRetries + 1;
 
-  try {
-    const includeContentType = method === "POST";
-    const headers = buildHeaders(config, includeContentType);
-    const body = payload === undefined ? undefined : JSON.stringify(payload);
+  for (let attemptIndex = 0; attemptIndex < totalAttempts; attemptIndex += 1) {
+    const attempt = attemptIndex + 1;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body,
-      signal: controller.signal,
-    });
-    const bodyText = await response.text();
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body,
+        signal: controller.signal,
+      });
+      const bodyText = await response.text();
 
-    if (response.ok) {
-      return successEnvelope(operation, response.status, url, bodyText);
+      if (response.ok) {
+        return successEnvelope(operation, response.status, url, bodyText, attempt);
+      }
+
+      if (isRetryableStatus(response.status) && attemptIndex < config.maxRetries) {
+        await waitForBackoff(config, attemptIndex);
+        continue;
+      }
+
+      const retryNote = attempt > 1 ? ` after ${attempt} attempts` : "";
+      return errorEnvelope(
+        operation,
+        response.status,
+        url,
+        "http_error",
+        `Request failed with HTTP ${response.status}${retryNote}`,
+        bodyText,
+        attempt
+      );
+    } catch (error) {
+      if (attemptIndex < config.maxRetries && shouldRetryNetworkError(error)) {
+        await waitForBackoff(config, attemptIndex);
+        continue;
+      }
+
+      const message = error instanceof Error ? error.message : "Unknown network error";
+      const retryNote = attempt > 1 ? ` after ${attempt} attempts` : "";
+      return errorEnvelope(
+        operation,
+        null,
+        url,
+        "network_error",
+        `${message}${retryNote}`,
+        "",
+        attempt
+      );
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return errorEnvelope(
-      operation,
-      response.status,
-      url,
-      "http_error",
-      `Request failed with HTTP ${response.status}`,
-      bodyText
-    );
-  } catch (error) {
-    return errorEnvelope(
-      operation,
-      null,
-      url,
-      "network_error",
-      error instanceof Error ? error.message : "Unknown network error",
-      ""
-    );
-  } finally {
-    clearTimeout(timeout);
   }
+
+  return errorEnvelope(
+    operation,
+    null,
+    url,
+    "network_error",
+    `Request failed after ${totalAttempts} attempts`,
+    "",
+    totalAttempts
+  );
 }
 
 export async function card(config: ResolvedA2AConfig): Promise<A2AEnvelope> {
@@ -244,7 +350,8 @@ export async function send(config: ResolvedA2AConfig, payload: unknown): Promise
       config.endpointUrl,
       "invalid_payload",
       "Payload is required for send operation",
-      ""
+      "",
+      1
     );
   }
 
@@ -273,7 +380,8 @@ export async function smoke(config: ResolvedA2AConfig): Promise<A2AEnvelope> {
       cardResult.url,
       "smoke_card_failed",
       "Smoke test failed during card retrieval",
-      JSON.stringify(cardResult)
+      JSON.stringify(cardResult),
+      cardResult.attempts
     );
   }
 
@@ -285,7 +393,8 @@ export async function smoke(config: ResolvedA2AConfig): Promise<A2AEnvelope> {
       sendResult.url,
       "smoke_send_failed",
       "Smoke test failed during send operation",
-      JSON.stringify(sendResult)
+      JSON.stringify(sendResult),
+      sendResult.attempts
     );
   }
 
@@ -299,6 +408,7 @@ export async function smoke(config: ResolvedA2AConfig): Promise<A2AEnvelope> {
   return {
     ok: true,
     operation: "smoke",
+    attempts: Math.max(cardResult.attempts, sendResult.attempts),
     status: sendResult.status,
     url: config.endpointUrl,
     data: {
@@ -306,6 +416,10 @@ export async function smoke(config: ResolvedA2AConfig): Promise<A2AEnvelope> {
         card: true,
         send: true,
         echoLikeFieldPresent: observedEchoSignal,
+      },
+      attempts: {
+        card: cardResult.attempts,
+        send: sendResult.attempts,
       },
       card: cardResult.data,
       send: sendResult.data,

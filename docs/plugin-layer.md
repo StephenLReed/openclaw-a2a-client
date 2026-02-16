@@ -89,6 +89,21 @@ Supported modes:
 
 Validation occurs before network requests. Missing credentials produce `config_error` envelopes.
 
+## Reliability Policy
+
+Transport retries are configurable and bounded:
+
+1. `maxRetries` (default `2`, max `5`)
+2. `retryBaseDelayMs` (default `250`)
+3. `retryMaxDelayMs` (default `2000`)
+
+Retry policy applies to:
+
+1. Network-level failures (`fetch`/timeout errors)
+2. Transient HTTP responses: `408`, `429`, `500`, `502`, `503`, `504`
+
+Backoff is exponential and capped by `retryMaxDelayMs`.
+
 ## Output Envelope Contract
 
 Success envelope:
@@ -97,6 +112,7 @@ Success envelope:
 {
   "ok": true,
   "operation": "send",
+  "attempts": 1,
   "status": 200,
   "url": "https://hello.a2aregistry.org/a2a",
   "data": {}
@@ -109,6 +125,7 @@ Error envelope:
 {
   "ok": false,
   "operation": "send",
+  "attempts": 2,
   "status": 401,
   "url": "https://example/a2a",
   "error": {
