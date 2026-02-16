@@ -32,9 +32,15 @@ cat > "${PAYLOAD_FILE}" <<'JSON'
 JSON
 
 CARD_RESPONSE="$(bash "${REQUEST_SCRIPT}" card)"
+if [ "${A2A_DEBUG:-0}" = "1" ]; then
+  echo "Card response: ${CARD_RESPONSE}" >&2
+fi
 echo "${CARD_RESPONSE}" | jq -e '.ok == true and .operation == "card"' >/dev/null
 
 SEND_RESPONSE="$(bash "${REQUEST_SCRIPT}" send "${PAYLOAD_FILE}")"
+if [ "${A2A_DEBUG:-0}" = "1" ]; then
+  echo "Send response: ${SEND_RESPONSE}" >&2
+fi
 echo "${SEND_RESPONSE}" | jq -e '.ok == true and .operation == "send"' >/dev/null
 echo "${SEND_RESPONSE}" | jq -e '.data != null' >/dev/null
 echo "${SEND_RESPONSE}" | jq -e '.data.receivedInput != null or .data.message != null or .data.result != null or .data.response != null' >/dev/null
