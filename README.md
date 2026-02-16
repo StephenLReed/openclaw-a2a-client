@@ -1,23 +1,37 @@
 # OpenClaw A2A Client
 
-OpenClaw-compatible A2A client skill designed as an edge transport layer, with Consullo retained as the core intelligence, governance, and policy authority.
+OpenClaw-compatible A2A client implementation with two layers:
+
+1. Skill layer for ClawHub and edge-script workflows.
+2. TypeScript plugin runtime layer for Gateway method registration.
+
+The design keeps Consullo as the system-of-record for governance, trust, and policy decisions.
 
 ## What This Repository Delivers
 
-1. A publishable OpenClaw skill package (`SKILL.md`) for ClawHub.
-2. Auth-aware A2A transport scripts for card discovery, send, and probe operations.
-3. A live smoke test against the public Hello World A2A endpoint.
-4. Comprehensive implementation and operations documentation.
+1. Publishable OpenClaw skill package (`SKILL.md`).
+2. Auth-aware transport scripts (`card`, `send`, `probe`, `smoke`).
+3. TypeScript plugin with `openclaw.plugin.json` and runtime module.
+4. Unit and integration tests.
+5. Comprehensive markdown documentation.
 
 ## Repository Layout
 
 ```text
 openclaw-a2a-client/
   SKILL.md
+  openclaw.plugin.json
+  package.json
+  tsconfig.json
   README.md
   docs/
     architecture.md
+    plugin-layer.md
     publishing.md
+  src/
+    client.ts
+    index.ts
+    types.ts
   scripts/
     a2a_request.sh
     a2a_smoke.sh
@@ -26,116 +40,118 @@ openclaw-a2a-client/
     ping.json
   tests/
     test.sh
+    plugin-runtime.test.mjs
 ```
 
 ## Quick Start
 
-### 1. Validate prerequisites
+### 1. Validate skill prerequisites
 
 ```bash
 command -v bash curl jq
 ```
 
-### 2. Fetch agent card from public endpoint
-
-```bash
-bash scripts/a2a_request.sh card
-```
-
-### 3. Send a JSON-RPC payload
-
-```bash
-bash scripts/a2a_request.sh send examples/message-send.json
-```
-
-### 4. Run end-to-end smoke test
+### 2. Run script-based smoke test
 
 ```bash
 bash scripts/a2a_smoke.sh
 ```
 
-## Environment Variables
+### 3. Build plugin runtime
 
-### Endpoint controls
+```bash
+npm install
+npm run build
+```
 
-1. `A2A_BASE_URL` (default: `https://hello.a2aregistry.org`)
-2. `A2A_CARD_URL` (default: `${A2A_BASE_URL}/.well-known/agent-card.json`)
-3. `A2A_ENDPOINT_URL` (default: `${A2A_BASE_URL}/a2a`)
-4. `A2A_TIMEOUT_SEC` (default: `20`)
+### 4. Run full test suite
 
-### Authorization controls
+```bash
+npm test
+```
 
-1. `A2A_AUTH_MODE` with allowed values:
-   - `none` (default)
-   - `bearer`
-   - `basic`
-   - `header`
-2. `A2A_AUTH_TOKEN` for `bearer`
-3. `A2A_AUTH_USER` and `A2A_AUTH_PASS` for `basic`
-4. `A2A_AUTH_HEADER_NAME` and `A2A_AUTH_HEADER_VALUE` for `header`
+## Skill Layer Commands
 
-## Command Reference
+1. Fetch card:
+```bash
+bash scripts/a2a_request.sh card
+```
+2. Send payload:
+```bash
+bash scripts/a2a_request.sh send examples/message-send.json
+```
+3. Probe base URL:
+```bash
+bash scripts/a2a_request.sh probe
+```
+4. End-to-end smoke:
+```bash
+bash scripts/a2a_smoke.sh
+```
 
-### `a2a_request.sh card`
-Fetches the agent card.
+## Plugin Layer
 
-### `a2a_request.sh send <payload.json>`
-Sends a JSON payload to the A2A endpoint.
+Manifest:
 
-### `a2a_request.sh probe`
-Checks reachability for the configured base URL.
+1. `openclaw.plugin.json`
 
-All commands return normalized JSON envelopes:
+Runtime entry:
+
+1. `src/index.ts`
+
+Registered gateway methods:
+
+1. `a2a-client.card`
+2. `a2a-client.send`
+3. `a2a-client.probe`
+4. `a2a-client.smoke`
+
+`a2a-client.send` parameters:
 
 ```json
 {
-  "ok": true,
-  "operation": "send",
-  "status": 200,
-  "url": "https://hello.a2aregistry.org/a2a",
-  "data": {}
+  "payload": {
+    "jsonrpc": "2.0",
+    "id": "1",
+    "method": "message/send",
+    "params": {}
+  }
 }
 ```
 
-On failure:
+Optional per-call config overrides:
 
 ```json
 {
-  "ok": false,
-  "operation": "send",
-  "status": 401,
-  "url": "https://example/a2a",
-  "error": {
-    "code": "http_error",
-    "message": "Request failed with HTTP 401"
-  },
-  "body": {}
+  "config": {
+    "baseUrl": "https://hello.a2aregistry.org",
+    "authMode": "none"
+  }
 }
 ```
 
-## Testing
+## Configuration
 
-### Full suite including live public endpoint smoke
+Plugin config schema fields:
 
-```bash
-bash tests/test.sh
-```
+1. Endpoint: `baseUrl`, `cardUrl`, `endpointUrl`, `timeoutMs`
+2. Auth: `authMode`, `authToken`, `authUser`, `authPass`, `authHeaderName`, `authHeaderValue`
+3. Headers: `defaultHeaders`
 
-### Offline-only checks (skip live network call)
+Script env variables:
 
-```bash
-RUN_LIVE=0 bash tests/test.sh
-```
+1. Endpoint: `A2A_BASE_URL`, `A2A_CARD_URL`, `A2A_ENDPOINT_URL`, `A2A_TIMEOUT_SEC`
+2. Auth mode: `A2A_AUTH_MODE` (`none|bearer|basic|header`)
+3. Auth secrets: `A2A_AUTH_TOKEN`, `A2A_AUTH_USER`, `A2A_AUTH_PASS`, `A2A_AUTH_HEADER_NAME`, `A2A_AUTH_HEADER_VALUE`
 
 ## Consullo Positioning
 
-This client is intentionally transport-focused and operationally thin:
+1. OpenClaw layer performs transport and diagnostics.
+2. Consullo remains authoritative for policy, trust, and governance controls.
+3. Normalized envelopes are designed for Consullo-side audit and control pipelines.
 
-1. OpenClaw skill handles endpoint I/O and normalization.
-2. Consullo remains authoritative for policy, trust, and governance decisions.
-3. Correlation and audit metadata should be injected and evaluated by Consullo-side orchestration.
+## Documentation
 
-For design rationale and publication guidance, see:
-
-1. `docs/architecture.md`
-2. `docs/publishing.md`
+1. Architecture: `docs/architecture.md`
+2. Plugin runtime: `docs/plugin-layer.md`
+3. Publishing flow: `docs/publishing.md`

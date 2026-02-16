@@ -1,0 +1,25 @@
+{
+  "name": "@stephenlreed/openclaw-a2a-client",
+  "version": "0.2.0",
+  "private": true,
+  "description": "OpenClaw A2A client plugin and skill package",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test:plugin": "npm run build && node --test tests/plugin-runtime.test.mjs",
+    "test": "bash tests/test.sh && npm run test:plugin"
+  },
+  "openclaw": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.9.2"
+  }
+}

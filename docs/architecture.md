@@ -2,13 +2,18 @@
 
 ## Scope
 
-This repository implements a skill-first OpenClaw A2A client intended for ClawHub publication and direct use inside OpenClaw instances. It is designed as an edge transport layer and diagnostic surface, not a policy engine.
+This repository implements a dual-layer OpenClaw A2A client:
+
+1. Skill-first package for ClawHub and script-driven workflows.
+2. TypeScript plugin runtime for Gateway method registration.
+
+It is designed as an edge transport layer and diagnostic surface, not a policy engine.
 
 ## Consullo Alignment
 
 The implementation follows a split-responsibility model:
 
-1. OpenClaw skill executes A2A transport operations at the user edge.
+1. OpenClaw skill and plugin execute A2A transport operations at the user edge.
 2. Consullo remains the core governance and intelligence layer.
 3. Consullo policy can permit, deny, or shape operations before and after transport.
 4. Consullo audit systems can consume normalized operation envelopes returned by this client.
@@ -43,6 +48,32 @@ Integration script for public endpoint confidence checks:
 3. Sends message payload to A2A endpoint.
 4. Validates response body shape and expected echo-like behavior.
 
+### `openclaw.plugin.json`
+
+Declares plugin identity and configuration schema required by OpenClaw plugin loading:
+
+1. `id: a2a-client`
+2. Config schema for endpoint and auth controls
+3. Skills linkage for shared skill usage
+
+### `src/index.ts`
+
+Registers Gateway methods in runtime:
+
+1. `a2a-client.card`
+2. `a2a-client.send`
+3. `a2a-client.probe`
+4. `a2a-client.smoke`
+
+### `src/client.ts`
+
+Provides reusable TypeScript transport core:
+
+1. Config resolution and auth validation.
+2. Header construction for all auth modes.
+3. HTTP request execution with timeout and normalized envelopes.
+4. Smoke workflow composed from card + send operations.
+
 ### `examples/`
 
 Stores reproducible JSON payload fixtures suitable for:
@@ -58,6 +89,15 @@ Runs a practical test matrix:
 1. Script syntax validation.
 2. Auth-mode input guard checks.
 3. Optional live smoke path against public endpoint.
+
+### `tests/plugin-runtime.test.mjs`
+
+Covers plugin runtime behavior:
+
+1. Config defaults and auth header logic.
+2. Invalid payload behavior.
+3. Method registration contract.
+4. Config-error behavior and handler response path.
 
 ## Endpoint Strategy
 
@@ -115,13 +155,13 @@ Implemented in this v1:
 1. Public endpoint transport validation.
 2. Auth-aware request path for private peers.
 3. Packaging pattern compatible with OpenClaw skill loading.
+4. TypeScript plugin layer and gateway methods.
 
 Not implemented in this v1:
 
 1. Streaming session management.
 2. Advanced A2A method negotiation.
 3. Cryptographic trust chains and delegated credential brokers.
-4. Native TypeScript runtime plugin hooks.
 
 ## Upgrade Path
 
@@ -129,5 +169,5 @@ The repository is structured for incremental extension:
 
 1. Add streamed operation command set while preserving envelope format.
 2. Add correlation fields expected by Consullo orchestration wrappers.
-3. Add plugin module and `openclaw.plugin.json` once runtime hooks are needed.
-4. Keep skill docs as stable user/operator interface across implementation upgrades.
+3. Add signature verification and trust policy hooks for high-assurance peers.
+4. Keep skill and plugin envelopes backward-compatible for operational continuity.

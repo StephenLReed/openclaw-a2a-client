@@ -1,0 +1,72 @@
+{
+  "id": "a2a-client",
+  "name": "A2A Client",
+  "description": "Auth-aware A2A transport plugin with card discovery, send, probe, and smoke methods.",
+  "version": "0.2.0",
+  "kind": "plugin",
+  "skills": [
+    "."
+  ],
+  "uiHints": {
+    "sensitiveFields": [
+      "authToken",
+      "authPass",
+      "authHeaderValue"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "baseUrl": {
+        "type": "string",
+        "description": "Base service URL for the target A2A endpoint."
+      },
+      "cardUrl": {
+        "type": "string",
+        "description": "Override URL for .well-known agent card."
+      },
+      "endpointUrl": {
+        "type": "string",
+        "description": "Override URL for A2A requests."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "maximum": 60000,
+        "default": 20000
+      },
+      "authMode": {
+        "type": "string",
+        "enum": [
+          "none",
+          "bearer",
+          "basic",
+          "header"
+        ],
+        "default": "none"
+      },
+      "authToken": {
+        "type": "string"
+      },
+      "authUser": {
+        "type": "string"
+      },
+      "authPass": {
+        "type": "string"
+      },
+      "authHeaderName": {
+        "type": "string"
+      },
+      "authHeaderValue": {
+        "type": "string"
+      },
+      "defaultHeaders": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -2,13 +2,17 @@
 
 ## Intended Package Type
 
-This repository is currently packaged as a skill-first artifact for OpenClaw and ClawHub distribution.
+This repository ships both:
+
+1. Skill package for ClawHub distribution (`SKILL.md`).
+2. Plugin runtime package for OpenClaw Gateway loading (`openclaw.plugin.json` + `src/index.ts`).
 
 ## Required Publish Assets
 
 1. `SKILL.md` at repository root.
-2. Only text-based files in package.
-3. Size comfortably below 50MB.
+2. `openclaw.plugin.json` at repository root for plugin-enabled distributions.
+3. Only text-based files in package.
+4. Size comfortably below 50MB.
 
 ## Versioning and Slug Guidance
 
@@ -20,20 +24,46 @@ This repository is currently packaged as a skill-first artifact for OpenClaw and
 1. Run local tests:
 
 ```bash
-bash tests/test.sh
+npm test
 ```
 
 2. Validate skill metadata and required binaries:
    - `bash`, `curl`, `jq`
-3. Confirm no secrets are committed:
+3. Validate plugin manifest:
+   - `id` present
+   - `configSchema` present
+   - method names documented
+4. Confirm no secrets are committed:
 
 ```bash
 git grep -n "A2A_AUTH_TOKEN\\|A2A_AUTH_PASS\\|clh_"
 ```
 
-4. Confirm `SKILL.md` usage commands resolve relative paths correctly.
+5. Confirm `SKILL.md` usage commands resolve relative paths correctly.
+6. Build plugin artifact:
+
+```bash
+npm run build
+```
 
 ## Example Runtime Configurations
+
+### Plugin configuration block
+
+```json
+{
+  "plugins": {
+    "a2a-client": {
+      "enabled": true,
+      "config": {
+        "baseUrl": "https://hello.a2aregistry.org",
+        "authMode": "none",
+        "timeoutMs": 20000
+      }
+    }
+  }
+}
+```
 
 ### Public smoke target
 
