@@ -144,9 +144,11 @@ perform_request() {
     -H "Accept: application/json"
   )
 
-  for header in "${AUTH_HEADERS[@]}"; do
-    curl_cmd+=(-H "${header}")
-  done
+  if [ "${#AUTH_HEADERS[@]}" -gt 0 ]; then
+    for header in "${AUTH_HEADERS[@]}"; do
+      curl_cmd+=(-H "${header}")
+    done
+  fi
 
   if [ -n "$payload_file" ]; then
     curl_cmd+=(-H "Content-Type: application/json" --data-binary "@${payload_file}")

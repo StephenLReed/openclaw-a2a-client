@@ -1,6 +1,6 @@
 {
   "name": "@stephenlreed/openclaw-a2a-client",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "OpenClaw A2A client plugin and skill package",
   "license": "MIT",
