@@ -160,6 +160,55 @@ Script env variables:
 3. Auth mode: `A2A_AUTH_MODE` (`none|bearer|basic|header`)
 4. Auth secrets: `A2A_AUTH_TOKEN`, `A2A_AUTH_USER`, `A2A_AUTH_PASS`, `A2A_AUTH_HEADER_NAME`, `A2A_AUTH_HEADER_VALUE`
 
+## Local Integration (LAN/HTTP)
+
+Use this mode for early integration testing between an OpenClaw node and a local/private A2A server.
+
+Example topology:
+
+1. OpenClaw host: `192.168.86.33`
+2. A2A server host: `192.168.86.38`
+3. A2A server port: `8081`
+
+Example plugin config:
+
+```json
+{
+  "baseUrl": "http://192.168.86.38:8081",
+  "cardUrl": "http://192.168.86.38:8081/.well-known/agent-card.json",
+  "endpointUrl": "http://192.168.86.38:8081/a2a",
+  "authMode": "none",
+  "timeoutMs": 20000,
+  "maxRetries": 1,
+  "retryBaseDelayMs": 250,
+  "retryMaxDelayMs": 2000
+}
+```
+
+Equivalent environment variables:
+
+```bash
+A2A_BASE_URL=http://192.168.86.38:8081
+A2A_CARD_URL=http://192.168.86.38:8081/.well-known/agent-card.json
+A2A_ENDPOINT_URL=http://192.168.86.38:8081/a2a
+A2A_AUTH_MODE=none
+A2A_TIMEOUT_SEC=20
+A2A_MAX_RETRIES=1
+```
+
+Validation order:
+
+1. `a2a-client.probe`
+2. `a2a-client.card`
+3. `a2a-client.smoke`
+4. `a2a-client.send` with a target payload
+
+Operational notes:
+
+1. Bind your A2A server to `0.0.0.0` (not only `127.0.0.1`) for LAN reachability.
+2. Allow inbound traffic from the OpenClaw host to the A2A server port.
+3. Prefer HTTP only on trusted private networks; use HTTPS for any internet-facing deployment.
+
 ## Consullo Positioning
 
 1. OpenClaw layer performs transport and diagnostics.
